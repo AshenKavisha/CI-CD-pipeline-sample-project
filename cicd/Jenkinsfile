@@ -34,7 +34,11 @@ pipeline {
 
         stage('Code Quality - SonarQube') {
             steps {
-                echo 'SonarQube analysis will go here (next step in our pipeline)'
+                dir('cicd') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh 'sonar-scanner -Dsonar.projectKey=CICD-PIPELINE -Dsonar.sources=.'
+                    }
+                }
             }
         }
 
