@@ -33,14 +33,17 @@ pipeline {
         }
 
         stage('Code Quality - SonarQube') {
-            steps {
-                dir('cicd') {
-                    withSonarQubeEnv('SonarQube') {
-                        sh 'sonar-scanner -Dsonar.projectKey=CICD-PIPELINE -Dsonar.sources=.'
-                    }
+    steps {
+        dir('cicd') {
+            withSonarQubeEnv('SonarQube') {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+                    sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=CICD-PIPELINE -Dsonar.sources=. -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**"
                 }
             }
         }
+    }
+}
 
         stage('Build Docker Image') {
             steps {
