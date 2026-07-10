@@ -33,7 +33,7 @@ pipeline {
 
         stage('Install Backend Dependencies') {
             steps {
-                dir('cicd/server') {
+                dir('server') {
                     sh 'npm install'
                 }
             }
@@ -61,7 +61,7 @@ pipeline {
                     sh "docker push ${FRONTEND_IMAGE}:latest"
                 }
 
-                dir('cicd/server') {
+                dir('server') {
                     sh "docker build -t ${BACKEND_IMAGE}:latest ."
                     sh "docker push ${BACKEND_IMAGE}:latest"
                 }
