@@ -1,6 +1,13 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+        FRONTEND_IMAGE = 'ashenkavisha/portfolio-frontend'
+        BACKEND_IMAGE = 'ashenkavisha/portfolio-backend'
+        DOCKER_SERVER_IP = '13.126.130.97'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -33,21 +40,48 @@ pipeline {
         }
 
         stage('Code Quality - SonarQube') {
-    steps {
-        dir('cicd') {
-            withSonarQubeEnv('SonarQube') {
-                script {
-                    def scannerHome = tool 'SonarScanner'
-                    sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=CICD-PIPELINE -Dsonar.sources=. -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**"
+            steps {
+                dir('cicd') {
+                    withSonarQubeEnv('SonarQube') {
+                        script {
+                            def scannerHome = tool 'SonarScanner'
+                            sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=CICD-PIPELINE -Dsonar.sources=. -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**"
+                        }
+                    }
                 }
             }
         }
-    }
-}
 
-        stage('Build Docker Image') {
+        stage('Build & Push Docker Images') {
             steps {
-                echo 'Docker build will go here (later step in our pipeline)'
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+
+                dir('cicd') {
+                    sh "docker build -t ${FRONTEND_IMAGE}:latest ."
+                    sh "docker push ${FRONTEND_IMAGE}:latest"
+                }
+
+                dir('cicd/server') {
+                    sh "docker build -t ${BACKEND_IMAGE}:latest ."
+                    sh "docker push ${BACKEND_IMAGE}:latest"
+                }
+            }
+        }
+
+        stage('Deploy to Docker Server') {
+            steps {
+                sshagent(credentials: ['docker-server-ssh']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ubuntu@${DOCKER_SERVER_IP} '
+                            docker pull ${FRONTEND_IMAGE}:latest &&
+                            docker pull ${BACKEND_IMAGE}:latest &&
+                            docker stop portfolio-frontend portfolio-backend || true &&
+                            docker rm portfolio-frontend portfolio-backend || true &&
+                            docker run -d --name portfolio-backend --network cicd-network -p 5000:5000 --env-file .env ${BACKEND_IMAGE}:latest &&
+                            docker run -d --name portfolio-frontend --network cicd-network -p 80:80 ${FRONTEND_IMAGE}:latest
+                        '
+                    """
+                }
             }
         }
     }
