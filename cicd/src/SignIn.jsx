@@ -17,7 +17,7 @@ import ForgotPassword from './components/ForgotPassword';
 import AppTheme from './shared-theme/AppTheme';
 import ColorModeSelect from './shared-theme/ColorModeSelect';
 import { GoogleIcon, FacebookIcon, SitemarkIcon } from './components/CustomIcons';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
@@ -61,12 +61,18 @@ const SignInContainer = styled(Stack)(({ theme }) => ({
   },
 }));
 
+// Base URL for your backend API — update if your server IP/domain changes
+const API_BASE_URL = 'http://13.126.130.97:5000';
+
 export default function SignIn() {
+  const navigate = useNavigate();
   const [emailError, setEmailError] = React.useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = React.useState('');
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
   const [open, setOpen] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -74,18 +80,6 @@ export default function SignIn() {
 
   const handleClose = () => {
     setOpen(false);
-  };
-
-  const handleSubmit = (event) => {
-    if (emailError || passwordError) {
-      event.preventDefault();
-      return;
-    }
-    const data = new FormData(event.currentTarget);
-    console.log({
-      email: data.get('email'),
-      password: data.get('password'),
-    });
   };
 
   const validateInputs = () => {
@@ -115,6 +109,50 @@ export default function SignIn() {
     return isValid;
   };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault(); // always stop the browser's default form submission
+
+    if (!validateInputs()) {
+      return;
+    }
+
+    const data = new FormData(event.currentTarget);
+    const email = data.get('email');
+    const password = data.get('password');
+
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(result.error || 'Login failed. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Save the token so future requests can authenticate
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
+
+      // Redirect wherever makes sense after login, e.g. a dashboard/home page
+      navigate('/');
+
+    } catch (err) {
+      console.error('Login error:', err);
+      setSubmitError('Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AppTheme>
       <CssBaseline enableColorScheme />
@@ -127,7 +165,7 @@ export default function SignIn() {
             variant="h4"
             sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
           >
-            Sign in Oshadi
+            Sign in
           </Typography>
           <Box
             component="form"
@@ -178,8 +216,13 @@ export default function SignIn() {
               label="Remember me"
             />
             <ForgotPassword open={open} handleClose={handleClose} />
-            <Button type="submit" fullWidth variant="contained" onClick={validateInputs}>
-              Sign in
+            {submitError && (
+              <Typography color="error" sx={{ textAlign: 'center' }}>
+                {submitError}
+              </Typography>
+            )}
+            <Button type="submit" fullWidth variant="contained" disabled={isSubmitting}>
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
             <Link
               component="button"
@@ -212,8 +255,8 @@ export default function SignIn() {
             <Typography sx={{ textAlign: 'center' }}>
               Don&apos;t have an account?{' '}
               <Link component={RouterLink} to="/signup" variant="body2" sx={{ alignSelf: 'center' }}>
-  Sign up
-</Link>
+                Sign up
+              </Link>
             </Typography>
           </Box>
         </Card>

@@ -68,18 +68,41 @@ export default function SignUp() {
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
 
-  const handleSubmit = (event) => {
-    if (fullNameError || emailError || passwordError) {
-      event.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault(); // always prevent default browser submission
+
+    if (!validateInputs()) {
       return;
     }
+
     const data = new FormData(event.currentTarget);
-    console.log({
-      fullName: data.get('fullName'),
-      email: data.get('email'),
-      password: data.get('password'),
-    });
-  };
+    const fullName = data.get('fullName');
+    const email = data.get('email');
+    const password = data.get('password');
+
+    try {
+      const response = await fetch('http://13.126.130.97:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, password }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.error || 'Signup failed. Please try again.');
+        return;
+      }
+
+      alert('Account created successfully!');
+      // e.g. redirect to sign in page:
+      // window.location.href = '/signin';
+
+    } catch (err) {
+      console.error('Signup error:', err);
+      alert('Something went wrong. Please try again.');
+    }
+};
 
   const validateInputs = () => {
     const fullName = document.getElementById('fullName');
@@ -196,7 +219,7 @@ export default function SignUp() {
               control={<Checkbox value="updates" color="primary" />}
               label="I want to receive updates via email."
             />
-            <Button type="submit" fullWidth variant="contained" onClick={validateInputs}>
+            <Button type="submit" fullWidth variant="contained">
               Sign up
             </Button>
           </Box>
