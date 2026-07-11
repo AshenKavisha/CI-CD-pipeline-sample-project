@@ -127,7 +127,7 @@ export default function SignIn() {
             variant="h4"
             sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
           >
-            Sign in
+            Sign in Oshadi
           </Typography>
           <Box
             component="form"
